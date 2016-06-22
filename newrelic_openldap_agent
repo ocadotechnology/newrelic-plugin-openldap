@@ -1,0 +1,128 @@
+#! /usr/bin/env ruby
+
+#
+# This is an example agent which generates synthetic data.
+# A 1mHz (one cycle every 16 minutes) sin+1, cos+1 and sin+5 wave is generated,
+# using the Unix epoch as the base.
+#
+
+require 'rubygems'
+require 'bundler/setup'
+require 'net/ldap'
+
+require 'newrelic_plugin'
+
+module OpenLDAPAgent
+
+  class Agent < NewRelic::Plugin::Agent::Base
+
+    agent_guid 'com.ocadotechnology.newrelic.openldap'
+    agent_version '0.0.1'
+    agent_config_options :name, :host, :port, :dn, :password
+    agent_human_labels('OpenLDAP') { name }
+
+    def setup_metrics
+      @total_connections = NewRelic::Processor::EpochCounter.new
+      @bind_operations_initiated = NewRelic::Processor::EpochCounter.new
+      @bind_operations_completed = NewRelic::Processor::EpochCounter.new
+      @unbind_operations_initiated = NewRelic::Processor::EpochCounter.new
+      @unbind_operations_completed = NewRelic::Processor::EpochCounter.new
+      @search_operations_initiated = NewRelic::Processor::EpochCounter.new
+      @search_operations_completed = NewRelic::Processor::EpochCounter.new
+      @compare_operations_initiated = NewRelic::Processor::EpochCounter.new
+      @compare_operations_completed = NewRelic::Processor::EpochCounter.new
+      @modify_operations_initiated = NewRelic::Processor::EpochCounter.new
+      @modify_operations_completed = NewRelic::Processor::EpochCounter.new
+      @modrdn_operations_initiated = NewRelic::Processor::EpochCounter.new
+      @modrdn_operations_completed = NewRelic::Processor::EpochCounter.new
+      @add_operations_initiated = NewRelic::Processor::EpochCounter.new
+      @add_operations_completed = NewRelic::Processor::EpochCounter.new
+      @delete_operations_initiated = NewRelic::Processor::EpochCounter.new
+      @delete_operations_completed = NewRelic::Processor::EpochCounter.new
+      @abandon_operations_initiated = NewRelic::Processor::EpochCounter.new
+      @abandon_operations_completed = NewRelic::Processor::EpochCounter.new
+      @extended_operations_initiated = NewRelic::Processor::EpochCounter.new
+      @extended_operations_completed = NewRelic::Processor::EpochCounter.new
+      @bytes = NewRelic::Processor::EpochCounter.new
+      @pdus = NewRelic::Processor::EpochCounter.new
+      @entries = NewRelic::Processor::EpochCounter.new
+      @referrals = NewRelic::Processor::EpochCounter.new
+    end
+
+    def poll_cycle
+      unless get_openldap_status
+        return nil
+      end
+
+      stats = get_openldap_status
+
+    end
+
+    def get_openldap_status
+      begin
+        ldap = Net::LDAP.new(
+          :encryption => {
+            :method => :start_tls,
+          },
+          :host => host,
+          :port => port,
+          :auth => {
+            :method => :simple,
+            :username => dn,
+            :password => password,
+          },
+        )
+      rescue Exception => e
+        puts "Failed to connect to ldap: #{e}"
+      end
+      data = {}
+
+      ldap.open do |ldap|
+        ldap.search(:base => 'cn=monitor', :attributes => ['*', '+']) do |entry|
+          data[entry.dn] = entry
+        end
+
+        report_metric "Connections/Total", "Connections/Second", @total_connections.process(data['cn=Total,cn=Connections,cn=Monitor']['monitorcounter'][0])
+        report_metric "Connections/Current", "Connections", data['cn=Current,cn=Connections,cn=Monitor']['monitorcounter'][0]
+
+        report_metric 'Operations/Initiated/Bind', 'Operations/Second', @bind_operations_initiated.process(data['cn=Bind,cn=Operations,cn=Monitor']['monitorOpInitiated'][0])
+        report_metric 'Operations/Completed/Bind', 'Operations/Second', @bind_operations_completed.process(data['cn=Bind,cn=Operations,cn=Monitor']['monitorOpCompleted'][0])
+        report_metric 'Operations/Initiated/Unbind', 'Operations/Second', @unbind_operations_initiated.process(data['cn=Unbind,cn=Operations,cn=Monitor']['monitorOpInitiated'][0])
+        report_metric 'Operations/Completed/Unbind', 'Operations/Second', @unbind_operations_completed.process(data['cn=Unbind,cn=Operations,cn=Monitor']['monitorOpCompleted'][0])
+        report_metric 'Operations/Initiated/Search', 'Operations/Second', @search_operations_initiated.process(data['cn=Search,cn=Operations,cn=Monitor']['monitorOpInitiated'][0])
+        report_metric 'Operations/Completed/Search', 'Operations/Second', @search_operations_completed.process(data['cn=Search,cn=Operations,cn=Monitor']['monitorOpCompleted'][0])
+        report_metric 'Operations/Initiated/Compare', 'Operations/Second', @compare_operations_initiated.process(data['cn=Compare,cn=Operations,cn=Monitor']['monitorOpInitiated'][0])
+        report_metric 'Operations/Completed/Compare', 'Operations/Second', @compare_operations_completed.process(data['cn=Compare,cn=Operations,cn=Monitor']['monitorOpCompleted'][0])
+        report_metric 'Operations/Initiated/Modify', 'Operations/Second', @modify_operations_initiated.process(data['cn=Modify,cn=Operations,cn=Monitor']['monitorOpInitiated'][0])
+        report_metric 'Operations/Completed/Modify', 'Operations/Second', @modify_operations_completed.process(data['cn=Modify,cn=Operations,cn=Monitor']['monitorOpCompleted'][0])
+        report_metric 'Operations/Initiated/Modrdn', 'Operations/Second', @modrdn_operations_initiated.process(data['cn=Modrdn,cn=Operations,cn=Monitor']['monitorOpInitiated'][0])
+        report_metric 'Operations/Completed/Modrdn', 'Operations/Second', @modrdn_operations_completed.process(data['cn=Modrdn,cn=Operations,cn=Monitor']['monitorOpCompleted'][0])
+        report_metric 'Operations/Initiated/Add', 'Operations/Second', @add_operations_initiated.process(data['cn=Add,cn=Operations,cn=Monitor']['monitorOpInitiated'][0])
+        report_metric 'Operations/Completed/Add', 'Operations/Second', @add_operations_completed.process(data['cn=Add,cn=Operations,cn=Monitor']['monitorOpCompleted'][0])
+        report_metric 'Operations/Initiated/Delete', 'Operations/Second', @delete_operations_initiated.process(data['cn=Delete,cn=Operations,cn=Monitor']['monitorOpInitiated'][0])
+        report_metric 'Operations/Completed/Delete', 'Operations/Second', @delete_operations_completed.process(data['cn=Delete,cn=Operations,cn=Monitor']['monitorOpCompleted'][0])
+        report_metric 'Operations/Initiated/Abandon', 'Operations/Second', @abandon_operations_initiated.process(data['cn=Abandon,cn=Operations,cn=Monitor']['monitorOpInitiated'][0])
+        report_metric 'Operations/Completed/Abandon', 'Operations/Second', @abandon_operations_completed.process(data['cn=Abandon,cn=Operations,cn=Monitor']['monitorOpCompleted'][0])
+        report_metric 'Operations/Initiated/Extended', 'Operations/Second', @extended_operations_initiated.process(data['cn=Extended,cn=Operations,cn=Monitor']['monitorOpInitiated'][0])
+        report_metric 'Operations/Completed/Extended', 'Operations/Second', @extended_operations_completed.process(data['cn=Extended,cn=Operations,cn=Monitor']['monitorOpCompleted'][0])
+        report_metric 'Statistics/Bytes', 'Bytes/Second', @bytes.process(data['cn=Bytes,cn=Statistics,cn=Monitor']['monitorcounter'][0])
+        report_metric 'Statistics/PDU', 'PDUs/Second', @pdus.process(data['cn=PDU,cn=Statistics,cn=Monitor']['monitorcounter'][0])
+        report_metric 'Statistics/Entries', 'Entries/Second', @entries.process(data['cn=Entries,cn=Statistics,cn=Monitor']['monitorcounter'][0])
+        report_metric 'Statistics/Referrals', 'Referrals/Second', @referrals.process(data['cn=Referrals,cn=Statistics,cn=Monitor']['monitorcounter'][0])
+        report_metric 'Threads/Open', 'Threads', data['cn=Open,cn=Threads,cn=Monitor']['monitoredInfo'][0]
+        report_metric 'Threads/Starting', 'Threads', data['cn=Starting,cn=Threads,cn=Monitor']['monitoredInfo'][0]
+        report_metric 'Threads/Active', 'Threads', data['cn=Active,cn=Threads,cn=Monitor']['monitoredInfo'][0]
+        report_metric 'Threads/Pending', 'Threads', data['cn=Pending,cn=Threads,cn=Monitor']['monitoredInfo'][0]
+        report_metric 'Waiters/Read', 'Waiters', data['cn=Read,cn=Waiters,cn=Monitor']['monitorcounter'][0]
+        report_metric 'Waiters/Write', 'Waiters', data['cn=Write,cn=Waiters,cn=Monitor']['monitorcounter'][0]
+        end
+
+    end
+
+  end
+
+  NewRelic::Plugin::Setup.install_agent :openldap_agent, self
+
+  NewRelic::Plugin::Run.setup_and_run
+
+end
