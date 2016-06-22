@@ -117,7 +117,7 @@ module OpenLDAPAgent
         report_metric 'Threads/Starting', 'Threads', data['cn=Starting,cn=Threads,cn=Monitor']['monitoredInfo'][0]
         report_metric 'Threads/Active', 'Threads', data['cn=Active,cn=Threads,cn=Monitor']['monitoredInfo'][0]
         report_metric 'Threads/Pending', 'Threads', data['cn=Pending,cn=Threads,cn=Monitor']['monitoredInfo'][0]
-        report_metric 'Summary/Waiters', 'Waiters', data['cn=Read,cn=Waiters,cn=Monitor']['monitorcounter'][0] + data['cn=Write,cn=Waiters,cn=Monitor']['monitorcounter'][0]
+        report_metric 'Summary/Waiters', 'Waiters', data['cn=Read,cn=Waiters,cn=Monitor']['monitorcounter'][0].to_i + data['cn=Write,cn=Waiters,cn=Monitor']['monitorcounter'][0].to_i
         report_metric 'Waiters/Read', 'Waiters', data['cn=Read,cn=Waiters,cn=Monitor']['monitorcounter'][0]
         report_metric 'Waiters/Write', 'Waiters', data['cn=Write,cn=Waiters,cn=Monitor']['monitorcounter'][0]
         end
