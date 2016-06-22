@@ -17,7 +17,7 @@ module OpenLDAPAgent
   class Agent < NewRelic::Plugin::Agent::Base
 
     agent_guid 'com.ocadotechnology.newrelic.openldap'
-    agent_version '0.0.1'
+    agent_version '0.0.2'
     agent_config_options :name, :host, :port, :dn, :password
     agent_human_labels('OpenLDAP') { name }
 
